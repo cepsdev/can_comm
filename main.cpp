@@ -39,27 +39,27 @@ der Vater in seiner eigenen Vollmacht festgesetzt hat.
 Aber ihr werdet Kraft empfangen, wenn der 
 Heilige Geist auf euch gekommen ist; und ihr werdet
 meine Zeugen sein, sowohl in Jerusalem als auch in
-ganz Judäa und Samaria und bis an das Ende der
+ganz Judaea und Samaria und bis an das Ende der
 Erde. Und als er dies gesgat hatte, wurde er vor ihren
 Blicken emporgeheoben, und eine Wolke nahm ihn auf
 vor ihren Augen weg.
 Und als sie gespannt zum Himmel schauten, wie
 er auffuhr, siehe da standen zwei Männer in weißen
-Kleidern bei ihnen, die auch sprachen: Männe
-von Galiläa, was steht ihr und seht hinauf zum Himmel?
+Kleidern bei ihnen, die auch sprachen: Maenner
+von Galilaea, was steht ihr und seht hinauf zum Himmel?
 Dieser Jesus, der von wuch weg in den Himmel aufgenommen
 worden ist, wird so kommen, wie ihr ihn habt hingehen 
-sehen in den Himmel. Da kehrten sie nach Jerusalem zurück
-von dem Berg, welcher Ölberg heißt, der nahe bei Jerusalem ist,
+sehen in den Himmel. Da kehrten sie nach Jerusalem zurueck
+von dem Berg, welcher Oelberg heißt, der nahe bei Jerusalem ist,
 einen Sabbatweg entfernt.
 Und als sie hineingekommen waren, stiegen sie hinauf
 in den Obersaal, wo sie scih aufzuhalten pflegten:
 sowohl Petrus als Johannes und Jokobus und Matthäus,
-Jakobus, der Sohn das Alphäus, und Simon, der
+Jakobus, der Sohn das Alphaeus, und Simon, der
 Eiferer, und Judas, der Sohn des Jakobus. Diese
-alle verharrten einmütig im Gebet mit einigen
+alle verharrten einmuetig im Gebet mit einigen
 Frauen und Maria, der Mutter Jesu, und mit seinen
-Brüdern.)";
+Bruedern.)";
 
 
 int create_and_bind_raw_can_socket(std::string can_id){
@@ -93,11 +93,14 @@ struct Can{
     int h{-1};
     static const int string_id_base{45};
     static const int string_id_announce{0};
+    static const int string_id_fragment{1};
+
     static const unsigned short max_payload_string = 4;
+    static const unsigned short max_payload_can = 8;
 
     Can() = default;
     Can(string can_id){
-        //h = create_and_bind_raw_can_socket(can_id);
+        h = create_and_bind_raw_can_socket(can_id);
     }
 
     void announce_string(string s){
@@ -109,13 +112,19 @@ struct Can{
     }
 
     void send_string_partial(uint32_t offset, string s){
-
+        uint8_t buffer[max_payload_can] = {};
+        memcpy(buffer,&offset,sizeof(offset));
+        memcpy(buffer+sizeof(offset),s.c_str(), ::min(s.length(),(size_t)max_payload_string) );
+        send_can_frame(h,
+                       buffer, 
+                       sizeof(buffer), 
+                       string_id_base + string_id_fragment);
     }
 };
 
 Can operator << (Can can, string v){
     can.announce_string(v);
-    for (uint32_t pos = 0; pos < v.length(); v+=Can::max_payload_string){
+    for (uint32_t pos = 0; pos < v.length(); pos+=Can::max_payload_string){
         auto s{v.substr(pos,Can::max_payload_string)};
         can.send_string_partial(pos,s);
     }
@@ -125,8 +134,7 @@ Can operator << (Can can, string v){
 int main(){
     try{
         Can can{"vcan0"};
-
-
+        can << test;
     } catch (string e)
     {
         cerr << e << endl;
